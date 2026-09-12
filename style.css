@@ -1,21 +1,43 @@
-/* Biblioteca Virtual — tema visual em tons de madeira/bege, compartilhado por
-   index.html e ar.html. A cena 3D ocupa a tela inteira; o painel HTML fica
-   sobreposto (posição fixa) para não interferir na área de renderização. */
+/* Biblioteca Virtual — estilos da interface HTML que fica por cima da cena 3D
+   (cabeçalho, painel do CRUD e preview de capa). A cena em si é desenhada
+   pelo A-Frame; aqui cuidamos só da camada 2D. */
 
 :root {
-  --cor-madeira-escura: #4a2e1a;
-  --cor-madeira: #6b4226;
-  --cor-bege: #f3ead9;
-  --cor-bege-claro: #faf6ee;
-  --cor-texto: #2c2117;
-  --cor-borda: #d8c6a8;
-  --cor-erro: #a5342a;
-  --cor-primaria: #8b5a2b;
-  --cor-primaria-hover: #714722;
+  /* Paleta: madeira escura + pergaminho, para combinar com a estante 3D. */
+  --madeira-escura: #3e2718;
+  --madeira: #6b4226;
+  --madeira-clara: #8b5a2b;
+  --pergaminho: #f3e9d8;
+  --pergaminho-claro: #fcf8f0;
+  --borda: #dccbac;
+  --borda-forte: #bfa57d;
+  --texto: #2c2117;
+  --texto-suave: #6e5b47;
+  --dourado: #c79a3e;
+  --erro: #9e2f24;
+  --erro-fundo: #fbe7e3;
+
+  --raio: 12px;
+  --raio-pequeno: 8px;
+  --transicao: 160ms ease;
+
+  --altura-cabecalho: 58px;
+  --largura-painel: 348px;
+
+  --fonte-titulo: Georgia, 'Times New Roman', Times, serif;
+  --fonte-texto: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Precisa de !important: as regras de componentes abaixo definem `display`
+   (flex/inline-flex) e venceriam o `[hidden]` da folha de estilo do
+   navegador, deixando visíveis botões e o overlay que deveriam estar
+   escondidos. Toda a alternância de modos do formulário depende disto. */
+[hidden] {
+  display: none !important;
 }
 
 html,
@@ -23,9 +45,9 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
-  color: var(--cor-texto);
-  background: var(--cor-madeira-escura);
+  font-family: var(--fonte-texto);
+  color: var(--texto);
+  background: var(--madeira-escura);
 }
 
 a-scene {
@@ -35,215 +57,421 @@ a-scene {
   height: 100vh;
 }
 
-/* Cabeçalho fixo com o título da aplicação e o link para o modo AR. */
+/* ------------------------------------------------------------------ */
+/* Cabeçalho                                                           */
+/* ------------------------------------------------------------------ */
+
 .cabecalho {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 20;
+  height: var(--altura-cabecalho);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: rgba(74, 46, 26, 0.9);
-  color: var(--cor-bege-claro);
+  gap: 12px;
+  padding: 0 18px;
+  color: var(--pergaminho-claro);
+  background: linear-gradient(180deg, rgba(62, 39, 24, 0.97), rgba(44, 27, 16, 0.94));
+  border-bottom: 1px solid rgba(199, 154, 62, 0.45);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.3);
 }
 
 .cabecalho h1 {
-  font-size: 1.1rem;
   margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cabecalho a {
-  color: var(--cor-bege-claro);
+  flex-shrink: 0;
+  color: var(--pergaminho-claro);
   text-decoration: none;
-  border: 1px solid var(--cor-bege-claro);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  padding: 7px 13px;
+  border: 1px solid rgba(199, 154, 62, 0.65);
+  border-radius: 999px;
   white-space: nowrap;
+  transition: background var(--transicao), color var(--transicao);
 }
 
-.cabecalho a:hover {
-  background: var(--cor-bege-claro);
-  color: var(--cor-madeira-escura);
+.cabecalho a:hover,
+.cabecalho a:focus-visible {
+  background: var(--dourado);
+  color: var(--madeira-escura);
 }
 
-/* Painel lateral com o formulário de cadastro/edição. */
+/* ------------------------------------------------------------------ */
+/* Painel lateral do CRUD                                              */
+/* ------------------------------------------------------------------ */
+
 .painel-crud {
   position: fixed;
-  top: 56px;
+  top: var(--altura-cabecalho);
   right: 0;
   bottom: 0;
-  width: 340px;
+  z-index: 15;
+  width: var(--largura-painel);
   max-width: 92vw;
   overflow-y: auto;
-  z-index: 15;
-  background: var(--cor-bege);
-  border-left: 3px solid var(--cor-madeira);
-  padding: 16px;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.25);
+  padding: 18px 18px 26px;
+  background: rgba(243, 233, 216, 0.95);
+  backdrop-filter: blur(6px);
+  border-left: 1px solid var(--borda-forte);
+  box-shadow: -12px 0 30px rgba(20, 12, 6, 0.32);
+  scrollbar-width: thin;
+  scrollbar-color: var(--borda-forte) transparent;
+}
+
+.painel-crud::-webkit-scrollbar {
+  width: 9px;
+}
+
+.painel-crud::-webkit-scrollbar-thumb {
+  background: var(--borda-forte);
+  border-radius: 999px;
 }
 
 .painel-crud h2 {
-  margin-top: 0;
-  font-size: 1.05rem;
-  color: var(--cor-madeira-escura);
-  border-bottom: 2px solid var(--cor-borda);
-  padding-bottom: 6px;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  font-family: var(--fonte-titulo);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--madeira-escura);
+  border-bottom: 2px solid var(--borda);
 }
 
+/* ------------------------------------------------------------------ */
+/* Campos do formulário                                                */
+/* ------------------------------------------------------------------ */
+
 .campo {
-  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  margin-bottom: 13px;
 }
 
 .campo label {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--texto-suave);
 }
 
 .campo input,
 .campo select,
 .campo textarea {
-  padding: 8px;
-  border: 1px solid var(--cor-borda);
-  border-radius: 6px;
-  background: var(--cor-bege-claro);
-  font-size: 0.95rem;
+  width: 100%;
+  padding: 9px 11px;
   font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--texto);
+  background: var(--pergaminho-claro);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  box-shadow: inset 0 1px 2px rgba(62, 39, 24, 0.07);
+  transition: border-color var(--transicao), box-shadow var(--transicao);
 }
 
-.campo input[type='color'] {
-  padding: 2px;
-  height: 40px;
-  cursor: pointer;
+.campo input:focus,
+.campo select:focus,
+.campo textarea:focus {
+  outline: none;
+  border-color: var(--madeira-clara);
+  box-shadow: 0 0 0 3px rgba(139, 90, 43, 0.22);
 }
 
 .campo textarea {
+  min-height: 78px;
   resize: vertical;
-  min-height: 70px;
+  line-height: 1.45;
 }
+
+.campo input[type='color'] {
+  height: 42px;
+  padding: 3px;
+  cursor: pointer;
+}
+
+/* Modo de visualização: os campos mostram os dados do livro selecionado mas
+   ficam bloqueados até o usuário clicar em "Editar". O visual aqui é de
+   "ficha de catálogo" (não de campo quebrado): fundo levemente mais escuro,
+   sem sombra interna e com o texto em contraste cheio, para continuar
+   legível. */
+.campo input:disabled,
+.campo select:disabled,
+.campo textarea:disabled {
+  color: var(--texto);
+  background: rgba(220, 203, 172, 0.42);
+  border-style: dashed;
+  border-color: var(--borda-forte);
+  box-shadow: none;
+  cursor: default;
+  opacity: 1;
+  -webkit-text-fill-color: var(--texto); /* Safari/iOS não respeitam `color` em :disabled */
+}
+
+.campo input[type='color']:disabled {
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ */
+/* Botões                                                              */
+/* ------------------------------------------------------------------ */
 
 .linha-botoes {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
   flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 button {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 10px 16px;
   font-family: inherit;
-  font-size: 0.95rem;
-  padding: 10px 14px;
-  border-radius: 6px;
-  border: none;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--raio-pequeno);
   cursor: pointer;
-  min-height: 42px;
+  transition: background var(--transicao), border-color var(--transicao),
+    transform var(--transicao), box-shadow var(--transicao);
+}
+
+button:focus-visible {
+  outline: 3px solid rgba(199, 154, 62, 0.55);
+  outline-offset: 2px;
+}
+
+button:active {
+  transform: translateY(1px);
 }
 
 .botao-primario {
-  background: var(--cor-primaria);
-  color: #fff;
+  color: var(--pergaminho-claro);
+  background: linear-gradient(180deg, var(--madeira-clara), var(--madeira));
+  box-shadow: 0 2px 6px rgba(62, 39, 24, 0.28);
 }
 
 .botao-primario:hover {
-  background: var(--cor-primaria-hover);
+  background: linear-gradient(180deg, #9a6631, #5b3820);
 }
 
 .botao-secundario {
+  color: var(--madeira-escura);
   background: transparent;
-  border: 1px solid var(--cor-madeira);
-  color: var(--cor-madeira-escura);
+  border-color: var(--borda-forte);
 }
 
 .botao-secundario:hover {
-  background: var(--cor-borda);
+  background: rgba(191, 165, 125, 0.28);
 }
 
 .botao-perigo {
-  background: var(--cor-erro);
   color: #fff;
+  background: var(--erro);
+  box-shadow: 0 2px 6px rgba(158, 47, 36, 0.3);
 }
 
 .botao-perigo:hover {
-  background: #7e2620;
+  background: #86271e;
 }
+
+/* ------------------------------------------------------------------ */
+/* Mensagens de validação                                              */
+/* ------------------------------------------------------------------ */
 
 .lista-erros {
-  margin: 8px 0;
-  padding: 10px 10px 10px 26px;
-  background: #fbe4e1;
-  border: 1px solid var(--cor-erro);
-  color: var(--cor-erro);
-  border-radius: 6px;
+  margin: 0 0 14px;
+  padding: 10px 12px 10px 28px;
   font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--erro);
+  background: var(--erro-fundo);
+  border: 1px solid rgba(158, 47, 36, 0.35);
+  border-left: 4px solid var(--erro);
+  border-radius: var(--raio-pequeno);
 }
 
-/* Painel de detalhes do livro selecionado. */
-.painel-detalhes {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 2px solid var(--cor-borda);
+.lista-erros li + li {
+  margin-top: 4px;
 }
 
-.painel-detalhes h3 {
-  margin: 0 0 8px;
-  color: var(--cor-madeira-escura);
+/* ------------------------------------------------------------------ */
+/* Preview da capa em tela cheia                                       */
+/* ------------------------------------------------------------------ */
+
+.overlay-capa {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 28px;
+  cursor: pointer;
+  background: radial-gradient(circle at center, rgba(30, 18, 10, 0.82), rgba(12, 7, 4, 0.94));
+  animation: overlay-surge 180ms ease-out;
 }
 
-.painel-detalhes dl {
-  margin: 0 0 10px;
+@keyframes overlay-surge {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.painel-detalhes dt {
-  font-weight: 600;
-  font-size: 0.8rem;
-  color: var(--cor-madeira);
-  margin-top: 6px;
+.overlay-capa-conteudo {
+  max-width: min(88vw, 400px);
+  max-height: 78vh;
+  cursor: default;
+  animation: capa-surge 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.painel-detalhes dd {
+@keyframes capa-surge {
+  from {
+    opacity: 0;
+    transform: scale(0.93) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.overlay-capa-conteudo img {
+  display: block;
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: 4px 10px 10px 4px; /* lombada à esquerda, como um livro real */
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.6), -6px 0 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Fallback usado quando o livro não tem capa (ou ela falha ao carregar):
+   um "cover" gerado com a cor cadastrada + título e autor. */
+.overlay-capa-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(66vw, 300px);
+  height: min(58vh, 420px);
+  padding: 30px 24px;
+  text-align: center;
+  font-family: var(--fonte-titulo);
+  border-radius: 4px 10px 10px 4px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 0 0 9px rgba(255, 255, 255, 0.08), 0 20px 46px rgba(0, 0, 0, 0.6);
+}
+
+.overlay-capa-fallback strong {
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.overlay-capa-fallback span {
+  font-size: 0.95rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* Dica de fechar: `pointer-events: none` é essencial — sem isso, um clique
+   sobre o texto não contaria como clique no fundo e o overlay não fecharia. */
+.overlay-capa-dica {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  color: rgba(252, 248, 240, 0.72);
+  pointer-events: none;
 }
+
+/* ------------------------------------------------------------------ */
+/* Aviso do modo AR                                                    */
+/* ------------------------------------------------------------------ */
 
 .aviso-ar {
   position: fixed;
-  bottom: 8px;
-  left: 8px;
+  bottom: 12px;
+  left: 12px;
   z-index: 15;
-  background: rgba(74, 46, 26, 0.85);
-  color: var(--cor-bege-claro);
-  padding: 8px 12px;
-  border-radius: 6px;
+  max-width: 58vw;
+  padding: 9px 14px;
   font-size: 0.8rem;
-  max-width: 60vw;
+  color: var(--pergaminho-claro);
+  background: rgba(62, 39, 24, 0.9);
+  border: 1px solid rgba(199, 154, 62, 0.4);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-/* Responsivo: em telas estreitas, o painel vira uma folha inferior em vez de
-   ocupar uma coluna lateral inteira, para não tomar a tela toda no celular. */
-@media (max-width: 700px) {
+/* ------------------------------------------------------------------ */
+/* Responsivo: no celular o painel vira uma folha inferior             */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 760px) {
   .painel-crud {
     top: auto;
-    bottom: 0;
     left: 0;
     right: 0;
+    bottom: 0;
     width: 100%;
     max-width: 100%;
-    max-height: 50vh;
+    max-height: 56vh;
+    padding-top: 22px;
     border-left: none;
-    border-top: 3px solid var(--cor-madeira);
+    border-top: 1px solid var(--borda-forte);
+    border-radius: var(--raio) var(--raio) 0 0;
+    box-shadow: 0 -12px 30px rgba(20, 12, 6, 0.35);
+  }
+
+  /* "Pegador" decorativo, para deixar claro que o painel rola. */
+  .painel-crud::before {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 44px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--borda-forte);
+  }
+
+  .cabecalho {
+    padding: 0 12px;
   }
 
   .cabecalho h1 {
-    font-size: 0.95rem;
+    font-size: 0.98rem;
   }
 
-  button {
-    flex: 1 1 auto;
+  .aviso-ar {
+    max-width: calc(100vw - 24px);
+    bottom: auto;
+    top: calc(var(--altura-cabecalho) + 10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

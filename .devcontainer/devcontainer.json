@@ -1,0 +1,13 @@
+{
+  "name": "Biblioteca Virtual",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Biblioteca Virtual (3D/VR e AR)",
+      "onAutoForward": "openPreview",
+      "visibility": "public"
+    }
+  },
+  "postStartCommand": "npm start > /tmp/biblioteca-virtual.log 2>&1 &"
+}

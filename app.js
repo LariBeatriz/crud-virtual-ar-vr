@@ -47,6 +47,9 @@ const GAP_TOPO = 0.15;
 
 const COR_MADEIRA = '#6B4226';
 const COR_MADEIRA_ESCURA = '#4A2E1A';
+// O fundo da estante é mais claro que as laterais de propósito: com um tom
+// escuro demais as prateleiras vazias viravam um "buraco preto" na cena.
+const COR_FUNDO_ESTANTE = '#6A472C';
 
 // ---------------------------------------------------------------------------
 // Estado da aplicação
@@ -232,7 +235,7 @@ function adicionarLivro(dados) {
 
   salvarLivros();
   renderizarBiblioteca();
-  limparFormulario();
+  entrarModoCriacao();
 }
 
 // UPDATE — equivalente conceitualmente a PUT/PATCH /livros/:id
@@ -248,9 +251,8 @@ function atualizarLivro(id, dados) {
   );
 
   salvarLivros();
-  limparSelecao();
   renderizarBiblioteca();
-  cancelarEdicao();
+  limparSelecao();
 }
 
 // DELETE — equivalente conceitualmente a DELETE /livros/:id
@@ -272,16 +274,57 @@ function excluirLivro(id) {
 // Cálculo de posição (nunca persistido — sempre derivado do índice)
 // ---------------------------------------------------------------------------
 
-function calcularPosicaoLivro(indice) {
+function calcularPosicaoLivro(indice, livro) {
   // Math.floor(indice / N) avança de prateleira a cada N livros completos.
   const numeroPrateleira = Math.floor(indice / LIVROS_POR_PRATELEIRA);
   // indice % N reinicia de 0 a cada nova prateleira: posição dentro da fileira.
   const posicaoNaPrateleira = indice % LIVROS_POR_PRATELEIRA;
 
   const x = X_INICIAL + posicaoNaPrateleira * ESPACAMENTO_X;
-  const y = Y_TOPO - numeroPrateleira * ESPACAMENTO_Y;
+
+  // Livros têm alturas ligeiramente diferentes (ver calcularAlturaLivro), e a
+  // posição do A-Frame é o CENTRO do objeto. Subimos metade da diferença para
+  // que a base continue apoiada na tábua, em vez de ficar flutuando ou
+  // afundando conforme a altura.
+  const ajusteDeAltura = livro ? (calcularAlturaLivro(livro) - ALTURA_LIVRO) / 2 : 0;
+  const y = Y_TOPO - numeroPrateleira * ESPACAMENTO_Y + ajusteDeAltura;
 
   return { x, y, z: Z_LIVROS, numeroPrateleira };
+}
+
+// Altura e profundidade variam um pouco de livro para livro, só para a
+// estante não parecer um conjunto de caixas idênticas. A variação vem do id,
+// então é determinística: o mesmo livro tem sempre as mesmas medidas, mesmo
+// depois de recarregar a página ou reconstruir a cena.
+function calcularAlturaLivro(livro) {
+  const variacao = ((Number(livro.id) % 5) - 2) * 0.04;
+  return ALTURA_LIVRO + variacao;
+}
+
+function calcularProfundidadeLivro(livro) {
+  const variacao = ((Number(livro.id) % 3) - 1) * 0.02;
+  return PROFUNDIDADE_LIVRO + variacao;
+}
+
+// Escolhe texto claro ou escuro conforme a luminância da cor do livro, para
+// o título continuar legível tanto numa lombada vinho quanto numa bege.
+function corDeContraste(corDoLivro) {
+  const hex = String(corDoLivro || '').replace('#', '');
+  const normalizado =
+    hex.length === 3
+      ? hex
+          .split('')
+          .map((caractere) => caractere + caractere)
+          .join('')
+      : hex;
+
+  const r = parseInt(normalizado.slice(0, 2), 16);
+  const g = parseInt(normalizado.slice(2, 4), 16);
+  const b = parseInt(normalizado.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return '#FFF8EC';
+
+  const luminancia = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminancia > 0.6 ? '#2C2117' : '#FFF8EC';
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +394,7 @@ function renderizarEstruturaEstante() {
       largura: LARGURA_ESTANTE,
       altura: alturaLateral,
       profundidade: ESPESSURA_PAINEL,
-      cor: COR_MADEIRA_ESCURA,
+      cor: COR_FUNDO_ESTANTE,
       x: 0,
       y: yCentroLateral,
       z: -PROFUNDIDADE_ESTANTE / 2
@@ -364,7 +407,9 @@ function criarCaixa({ largura, altura, profundidade, cor, x, y, z }) {
   caixa.setAttribute('width', largura);
   caixa.setAttribute('height', altura);
   caixa.setAttribute('depth', profundidade);
-  caixa.setAttribute('color', cor);
+  // roughness alto + metalness zero deixam a madeira fosca, em vez do
+  // aspecto plástico e brilhante do material padrão.
+  caixa.setAttribute('material', `color: ${cor}; roughness: 0.92; metalness: 0`);
   caixa.setAttribute('position', `${x} ${y} ${z}`);
   return caixa;
 }
@@ -389,7 +434,9 @@ function renderizarLivros() {
 // Cria a entidade 3D de um único livro, incluindo o carregamento best-effort
 // da capa.
 function criarLivro3D(livro, indice) {
-  const posicao = calcularPosicaoLivro(indice);
+  const posicao = calcularPosicaoLivro(indice, livro);
+  const altura = calcularAlturaLivro(livro);
+  const profundidade = calcularProfundidadeLivro(livro);
 
   const entidade = document.createElement('a-entity');
   entidade.setAttribute('data-id', String(livro.id));
@@ -398,23 +445,32 @@ function criarLivro3D(livro, indice) {
   entidade.setAttribute('scale', '1 1 1');
 
   // Lombada: sempre visível, usa a cor cadastrada. É o que garante que o
-  // livro nunca "quebra" visualmente, com ou sem capa.
+  // livro nunca "quebra" visualmente, com ou sem capa. O `emissive` já fica
+  // declarado aqui com intensidade zero para que o destaque da seleção
+  // precise mexer só na intensidade (ver aplicarDestaque).
   const lombada = document.createElement('a-box');
   lombada.setAttribute('width', LARGURA_LIVRO);
-  lombada.setAttribute('height', ALTURA_LIVRO);
-  lombada.setAttribute('depth', PROFUNDIDADE_LIVRO);
-  lombada.setAttribute('color', livro.cor || '#8B4513');
+  lombada.setAttribute('height', altura);
+  lombada.setAttribute('depth', profundidade);
+  lombada.setAttribute(
+    'material',
+    `color: ${livro.cor || '#8B4513'}; roughness: 0.72; metalness: 0.04; emissive: #FFD9A0; emissiveIntensity: 0`
+  );
   lombada.classList.add('clickable');
   entidade.appendChild(lombada);
 
   // Texto de apoio (título + autor), usado como identificação enquanto não
-  // há uma capa carregada com sucesso.
+  // há uma capa carregada com sucesso. A largura precisa acompanhar a do
+  // livro: com um valor maior que LARGURA_LIVRO o texto transborda por cima
+  // dos livros vizinhos.
   const texto = document.createElement('a-text');
-  texto.setAttribute('value', `${livro.titulo}\n${livro.autor}`);
+  texto.setAttribute('value', textoDaCapa(livro));
   texto.setAttribute('align', 'center');
-  texto.setAttribute('width', 1.2);
-  texto.setAttribute('color', '#FFFFFF');
-  texto.setAttribute('position', `0 0 ${PROFUNDIDADE_LIVRO / 2 + 0.001}`);
+  texto.setAttribute('baseline', 'center');
+  texto.setAttribute('width', LARGURA_LIVRO * 0.94);
+  texto.setAttribute('wrap-count', 14);
+  texto.setAttribute('color', corDeContraste(livro.cor));
+  texto.setAttribute('position', `0 0 ${profundidade / 2 + 0.001}`);
   entidade.appendChild(texto);
 
   entidade.addEventListener('click', () => selecionarLivro(livro.id));
@@ -432,9 +488,9 @@ function criarLivro3D(livro, indice) {
     imagem.onload = () => {
       const capaPlano = document.createElement('a-plane');
       capaPlano.setAttribute('width', LARGURA_LIVRO * 0.95);
-      capaPlano.setAttribute('height', ALTURA_LIVRO * 0.95);
+      capaPlano.setAttribute('height', altura * 0.95);
       capaPlano.setAttribute('src', livro.capa);
-      capaPlano.setAttribute('position', `0 0 ${PROFUNDIDADE_LIVRO / 2 + 0.002}`);
+      capaPlano.setAttribute('position', `0 0 ${profundidade / 2 + 0.002}`);
       capaPlano.classList.add('clickable');
       capaPlano.addEventListener('click', () => selecionarLivro(livro.id));
       entidade.appendChild(capaPlano);
@@ -451,40 +507,60 @@ function criarLivro3D(livro, indice) {
   return entidade;
 }
 
+// Títulos/autores muito longos viram um bloco de texto ilegível na capa 3D;
+// aqui cortamos o excesso (o texto completo continua no painel lateral).
+function textoDaCapa(livro) {
+  const LIMITE = 34;
+  const encurtar = (valor) =>
+    String(valor).length > LIMITE ? `${String(valor).slice(0, LIMITE - 1)}…` : String(valor);
+
+  return `${encurtar(livro.titulo)}\n\n${encurtar(livro.autor)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Seleção e destaque visual
 // ---------------------------------------------------------------------------
 
 // O clique numa entidade 3D só carrega o data-id; é esse id que liga o objeto
-// 3D de volta ao registro correspondente no array `livros`.
+// 3D de volta ao registro correspondente no array `livros`. Clicar sempre
+// reabre o preview da capa, mesmo se o livro já estava selecionado — só o
+// destaque 3D (escala/avanço) é que não se reaplica à toa nesse caso.
 function selecionarLivro(id) {
-  if (livroSelecionadoId === id) return;
-
-  removerDestaque(livroSelecionadoId);
-  livroSelecionadoId = id;
-  aplicarDestaque(id);
-
   const livro = livros.find((l) => l.id === id);
-  if (livro) mostrarDetalhes(livro);
+  if (!livro) return;
+
+  if (livroSelecionadoId !== id) {
+    removerDestaque(livroSelecionadoId);
+    livroSelecionadoId = id;
+    aplicarDestaque(id);
+  }
+
+  entrarModoVisualizacao(livro);
+  mostrarCapaOverlay(livro);
 }
 
 function limparSelecao() {
   removerDestaque(livroSelecionadoId);
-  livroSelecionadoId = null;
-  esconderDetalhes();
+  esconderCapaOverlay();
+  entrarModoCriacao();
 }
 
-// Destaque simples: aproxima o livro da câmera e aumenta levemente sua
-// escala, o suficiente para indicar qual está selecionado sem precisar de
-// efeitos complexos.
+// Destaque da seleção: o livro avança em direção à câmera, cresce um pouco e
+// acende (emissive). Os três juntos deixam claro qual livro está selecionado
+// mesmo quando a estante está cheia de cores parecidas.
 function aplicarDestaque(id) {
   const indice = livros.findIndex((l) => l.id === id);
   const entidade = document.querySelector(`#livros-container [data-id="${id}"]`);
   if (indice === -1 || !entidade) return;
 
-  const posicao = calcularPosicaoLivro(indice);
+  const posicao = calcularPosicaoLivro(indice, livros[indice]);
   entidade.setAttribute('position', `${posicao.x} ${posicao.y} ${posicao.z + 0.18}`);
-  entidade.setAttribute('scale', '1.15 1.15 1.15');
+  entidade.setAttribute('scale', '1.12 1.12 1.12');
+
+  // Brilho discreto: o suficiente para destacar sem lavar a cor cadastrada
+  // do livro (com valores altos um verde escuro virava quase bege).
+  const lombada = entidade.querySelector('a-box');
+  if (lombada) lombada.setAttribute('material', 'emissiveIntensity', 0.18);
 }
 
 function removerDestaque(id) {
@@ -496,26 +572,78 @@ function removerDestaque(id) {
 
   entidade.setAttribute('scale', '1 1 1');
   if (indice !== -1) {
-    const posicao = calcularPosicaoLivro(indice);
+    const posicao = calcularPosicaoLivro(indice, livros[indice]);
     entidade.setAttribute('position', `${posicao.x} ${posicao.y} ${posicao.z}`);
   }
+
+  const lombada = entidade.querySelector('a-box');
+  if (lombada) lombada.setAttribute('material', 'emissiveIntensity', 0);
 }
 
 // ---------------------------------------------------------------------------
-// Painel de detalhes (HTML)
+// Preview em tela cheia da capa (aberto ao clicar em qualquer livro)
 // ---------------------------------------------------------------------------
 
-function mostrarDetalhes(livro) {
-  document.getElementById('detalhe-titulo').textContent = livro.titulo;
-  document.getElementById('detalhe-autor').textContent = livro.autor;
-  document.getElementById('detalhe-genero').textContent = livro.genero;
-  document.getElementById('detalhe-ano').textContent = livro.ano;
-  document.getElementById('detalhe-sinopse').textContent = livro.sinopse;
-  document.getElementById('painel-detalhes').hidden = false;
+// Mostra a capa do livro selecionado ocupando a tela toda. Se não houver
+// capa, ou se ela falhar ao carregar, usa o mesmo fallback do livro 3D
+// (cor cadastrada + título/autor) — nunca deixa o preview vazio.
+function mostrarCapaOverlay(livro) {
+  const overlay = document.getElementById('overlay-capa');
+  const conteudo = document.getElementById('overlay-capa-conteudo');
+
+  mostrarFallbackCapaOverlay(conteudo, livro);
+
+  if (livro.capa) {
+    const imagem = new Image();
+    imagem.crossOrigin = 'anonymous';
+    imagem.alt = `Capa de ${livro.titulo}`;
+    imagem.onload = () => {
+      conteudo.innerHTML = '';
+      conteudo.appendChild(imagem);
+    };
+    imagem.onerror = () => {
+      console.warn(`Não foi possível carregar a capa de "${livro.titulo}" no preview. Usando a cor cadastrada.`);
+    };
+    imagem.src = livro.capa;
+  }
+
+  overlay.hidden = false;
 }
 
-function esconderDetalhes() {
-  document.getElementById('painel-detalhes').hidden = true;
+// Constrói o fallback via DOM (não innerHTML) porque título/autor vêm do
+// formulário preenchido pelo usuário — inserir esse texto como HTML bruto
+// abriria uma brecha de XSS armazenado.
+function mostrarFallbackCapaOverlay(conteudo, livro) {
+  conteudo.innerHTML = '';
+
+  const fallback = document.createElement('div');
+  fallback.className = 'overlay-capa-fallback';
+  fallback.style.backgroundColor = livro.cor || '#8B4513';
+  fallback.style.color = corDeContraste(livro.cor);
+
+  const titulo = document.createElement('strong');
+  titulo.textContent = livro.titulo;
+  const autor = document.createElement('span');
+  autor.textContent = livro.autor;
+
+  fallback.appendChild(titulo);
+  fallback.appendChild(autor);
+  conteudo.appendChild(fallback);
+}
+
+function esconderCapaOverlay() {
+  document.getElementById('overlay-capa').hidden = true;
+}
+
+// Clicar no fundo escurecido (fora da capa/fallback) fecha o preview e volta
+// para a interface normal de interação com os livros.
+function configurarOverlayCapa() {
+  const overlay = document.getElementById('overlay-capa');
+  overlay.addEventListener('click', (evento) => {
+    if (evento.target === overlay) {
+      esconderCapaOverlay();
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -534,16 +662,73 @@ function obterDadosFormulario() {
   };
 }
 
+// O formulário tem três modos, controlados por estas três funções — cada
+// uma deixa o formulário/botões num estado completo e consistente, então
+// trocar de modo nunca depende de "lembrar" de desfazer o estado anterior:
+//
+//   criação      -> campos vazios e editáveis, só o botão "Adicionar livro"
+//   visualização -> campos preenchidos com o livro selecionado, mas
+//                   desabilitados (não dá pra digitar); botões
+//                   Editar/Excluir/Fechar
+//   edição       -> campos preenchidos e editáveis; botões
+//                   Salvar alterações/Cancelar
+
+function entrarModoCriacao() {
+  livroSelecionadoId = null;
+  livroEmEdicaoId = null;
+
+  limparFormulario();
+  definirCamposEditaveis(true);
+  document.getElementById('titulo-formulario').textContent = 'Adicionar livro';
+
+  document.getElementById('botao-adicionar').hidden = false;
+  document.getElementById('botao-salvar').hidden = true;
+  document.getElementById('botao-cancelar').hidden = true;
+  document.getElementById('botao-editar-detalhe').hidden = true;
+  document.getElementById('botao-excluir-detalhe').hidden = true;
+  document.getElementById('botao-fechar-detalhe').hidden = true;
+}
+
+function entrarModoVisualizacao(livro) {
+  livroEmEdicaoId = null;
+
+  preencherFormulario(livro);
+  definirCamposEditaveis(false);
+  esconderErrosFormulario();
+  document.getElementById('titulo-formulario').textContent = 'Detalhes do livro';
+
+  document.getElementById('botao-adicionar').hidden = true;
+  document.getElementById('botao-salvar').hidden = true;
+  document.getElementById('botao-cancelar').hidden = true;
+  document.getElementById('botao-editar-detalhe').hidden = false;
+  document.getElementById('botao-excluir-detalhe').hidden = false;
+  document.getElementById('botao-fechar-detalhe').hidden = false;
+
+  // O painel pode estar rolado (principalmente no celular, onde ele é uma
+  // folha inferior curta); volta ao topo para os dados do livro recém
+  // selecionado ficarem visíveis sem o usuário precisar rolar.
+  const painel = document.querySelector('.painel-crud');
+  if (painel) painel.scrollTop = 0;
+}
+
 function entrarModoEdicao(id) {
   const livro = livros.find((l) => l.id === id);
   if (!livro) return;
 
   livroEmEdicaoId = id;
-  preencherFormularioEdicao(livro);
-  alternarBotoesParaEdicao(true);
+  preencherFormulario(livro);
+  definirCamposEditaveis(true);
+  document.getElementById('titulo-formulario').textContent = 'Editar livro';
+
+  document.getElementById('botao-adicionar').hidden = true;
+  document.getElementById('botao-salvar').hidden = false;
+  document.getElementById('botao-cancelar').hidden = false;
+  document.getElementById('botao-editar-detalhe').hidden = true;
+  document.getElementById('botao-excluir-detalhe').hidden = true;
+  document.getElementById('botao-fechar-detalhe').hidden = true;
 }
 
-function preencherFormularioEdicao(livro) {
+function preencherFormulario(livro) {
   document.getElementById('campo-titulo').value = livro.titulo;
   document.getElementById('campo-autor').value = livro.autor;
   document.getElementById('campo-genero').value = livro.genero;
@@ -553,10 +738,36 @@ function preencherFormularioEdicao(livro) {
   document.getElementById('campo-capa').value = livro.capa || '';
 }
 
+// Habilita/desabilita os campos do formulário. Usamos "disabled" (não
+// "readonly") porque readonly não tem efeito em <input type="color">, e
+// aqui os dois tipos de campo precisam ficar igualmente bloqueados no modo
+// de visualização.
+function definirCamposEditaveis(editavel) {
+  const idsDosCampos = [
+    'campo-titulo',
+    'campo-autor',
+    'campo-genero',
+    'campo-ano',
+    'campo-sinopse',
+    'campo-cor',
+    'campo-capa'
+  ];
+  idsDosCampos.forEach((id) => {
+    document.getElementById(id).disabled = !editavel;
+  });
+}
+
+// "Cancelar" durante uma edição não limpa a seleção: volta a mostrar os
+// dados (não modificados) do livro que estava selecionado, como se a edição
+// nunca tivesse começado.
 function cancelarEdicao() {
   livroEmEdicaoId = null;
-  limparFormulario();
-  alternarBotoesParaEdicao(false);
+  const livroSelecionado = livros.find((l) => l.id === livroSelecionadoId);
+  if (livroSelecionado) {
+    entrarModoVisualizacao(livroSelecionado);
+  } else {
+    entrarModoCriacao();
+  }
 }
 
 function limparFormulario() {
@@ -565,19 +776,18 @@ function limparFormulario() {
   esconderErrosFormulario();
 }
 
-function alternarBotoesParaEdicao(estaEditando) {
-  document.getElementById('botao-adicionar').hidden = estaEditando;
-  document.getElementById('botao-salvar').hidden = !estaEditando;
-  document.getElementById('botao-cancelar').hidden = !estaEditando;
-  document.getElementById('titulo-formulario').textContent = estaEditando
-    ? 'Editar livro'
-    : 'Adicionar livro';
-}
-
 function exibirErrosFormulario(erros) {
   const lista = document.getElementById('erros-formulario');
-  lista.innerHTML = erros.map((erro) => `<li>${erro}</li>`).join('');
+  lista.innerHTML = '';
+
+  erros.forEach((erro) => {
+    const item = document.createElement('li');
+    item.textContent = erro;
+    lista.appendChild(item);
+  });
+
   lista.hidden = false;
+  lista.scrollIntoView({ block: 'nearest' });
 }
 
 function esconderErrosFormulario() {
@@ -632,6 +842,7 @@ function inicializarAplicacao() {
 
   renderizarBiblioteca();
   configurarFormulario();
+  configurarOverlayCapa();
 }
 
 document.addEventListener('DOMContentLoaded', inicializarAplicacao);

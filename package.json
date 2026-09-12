@@ -1,0 +1,9 @@
+{
+  "name": "biblioteca-virtual",
+  "version": "1.0.0",
+  "description": "CRUD de livros representado como estante 3D, com A-Frame e AR.js (HTML/CSS/JS puro, sem back-end).",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  }
+}

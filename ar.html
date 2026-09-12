@@ -59,14 +59,22 @@
       "arjs" aplica o vídeo da webcam e a estimativa de pose do marcador.
       Sem um cursor/raycaster aqui, os livros dentro do marcador não
       responderiam a clique/toque — o AR.js não adiciona isso por padrão.
+
+      Este cursor não usa "rayOrigin: mouse", então a mira segue o centro
+      da tela (o sentido da câmera do celular) — é a forma natural de gaze
+      em AR de mão: aponte o aparelho para o livro e espere o fuse-timeout,
+      sem precisar tocar na tela. Tocar continua funcionando também.
     -->
     <a-entity camera>
       <a-cursor
         id="cursor-ar"
-        fuse="false"
+        fuse="true"
+        fuse-timeout="1200"
         raycaster="objects: .clickable"
-        geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
-        material="color: #FFF; shader: flat"
+        geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.018"
+        material="color: #FFE9C2; shader: flat; opacity: 0.9"
+        animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.6 0.6 0.6; to: 1 1 1"
+        animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1200; from: 1 1 1; to: 0.2 0.2 0.2"
       ></a-cursor>
     </a-entity>
 
@@ -142,28 +150,17 @@
         <button id="botao-adicionar" type="submit" class="botao-primario">Adicionar livro</button>
         <button id="botao-salvar" type="submit" class="botao-primario" hidden>Salvar alterações</button>
         <button id="botao-cancelar" type="button" class="botao-secundario" hidden>Cancelar edição</button>
+        <button id="botao-editar-detalhe" type="button" class="botao-secundario" hidden>Editar</button>
+        <button id="botao-excluir-detalhe" type="button" class="botao-perigo" hidden>Excluir</button>
+        <button id="botao-fechar-detalhe" type="button" class="botao-secundario" hidden>Fechar</button>
       </div>
     </form>
-
-    <section id="painel-detalhes" class="painel-detalhes" hidden>
-      <h3 id="detalhe-titulo"></h3>
-      <dl>
-        <dt>Autor</dt>
-        <dd id="detalhe-autor"></dd>
-        <dt>Gênero</dt>
-        <dd id="detalhe-genero"></dd>
-        <dt>Ano</dt>
-        <dd id="detalhe-ano"></dd>
-        <dt>Sinopse</dt>
-        <dd id="detalhe-sinopse"></dd>
-      </dl>
-      <div class="linha-botoes">
-        <button id="botao-editar-detalhe" type="button" class="botao-secundario">Editar</button>
-        <button id="botao-excluir-detalhe" type="button" class="botao-perigo">Excluir</button>
-        <button id="botao-fechar-detalhe" type="button" class="botao-secundario">Fechar</button>
-      </div>
-    </section>
   </aside>
+
+  <div id="overlay-capa" class="overlay-capa" hidden>
+    <div id="overlay-capa-conteudo" class="overlay-capa-conteudo"></div>
+    <p class="overlay-capa-dica">Toque fora da capa para voltar</p>
+  </div>
 
   <script src="app.js"></script>
 </body>
