@@ -1,0 +1,249 @@
+/* Biblioteca Virtual — tema visual em tons de madeira/bege, compartilhado por
+   index.html e ar.html. A cena 3D ocupa a tela inteira; o painel HTML fica
+   sobreposto (posição fixa) para não interferir na área de renderização. */
+
+:root {
+  --cor-madeira-escura: #4a2e1a;
+  --cor-madeira: #6b4226;
+  --cor-bege: #f3ead9;
+  --cor-bege-claro: #faf6ee;
+  --cor-texto: #2c2117;
+  --cor-borda: #d8c6a8;
+  --cor-erro: #a5342a;
+  --cor-primaria: #8b5a2b;
+  --cor-primaria-hover: #714722;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  color: var(--cor-texto);
+  background: var(--cor-madeira-escura);
+}
+
+a-scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Cabeçalho fixo com o título da aplicação e o link para o modo AR. */
+.cabecalho {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(74, 46, 26, 0.9);
+  color: var(--cor-bege-claro);
+}
+
+.cabecalho h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.cabecalho a {
+  color: var(--cor-bege-claro);
+  text-decoration: none;
+  border: 1px solid var(--cor-bege-claro);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.cabecalho a:hover {
+  background: var(--cor-bege-claro);
+  color: var(--cor-madeira-escura);
+}
+
+/* Painel lateral com o formulário de cadastro/edição. */
+.painel-crud {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  max-width: 92vw;
+  overflow-y: auto;
+  z-index: 15;
+  background: var(--cor-bege);
+  border-left: 3px solid var(--cor-madeira);
+  padding: 16px;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.25);
+}
+
+.painel-crud h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+  color: var(--cor-madeira-escura);
+  border-bottom: 2px solid var(--cor-borda);
+  padding-bottom: 6px;
+}
+
+.campo {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.campo label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.campo input,
+.campo select,
+.campo textarea {
+  padding: 8px;
+  border: 1px solid var(--cor-borda);
+  border-radius: 6px;
+  background: var(--cor-bege-claro);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.campo input[type='color'] {
+  padding: 2px;
+  height: 40px;
+  cursor: pointer;
+}
+
+.campo textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.linha-botoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  min-height: 42px;
+}
+
+.botao-primario {
+  background: var(--cor-primaria);
+  color: #fff;
+}
+
+.botao-primario:hover {
+  background: var(--cor-primaria-hover);
+}
+
+.botao-secundario {
+  background: transparent;
+  border: 1px solid var(--cor-madeira);
+  color: var(--cor-madeira-escura);
+}
+
+.botao-secundario:hover {
+  background: var(--cor-borda);
+}
+
+.botao-perigo {
+  background: var(--cor-erro);
+  color: #fff;
+}
+
+.botao-perigo:hover {
+  background: #7e2620;
+}
+
+.lista-erros {
+  margin: 8px 0;
+  padding: 10px 10px 10px 26px;
+  background: #fbe4e1;
+  border: 1px solid var(--cor-erro);
+  color: var(--cor-erro);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+/* Painel de detalhes do livro selecionado. */
+.painel-detalhes {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 2px solid var(--cor-borda);
+}
+
+.painel-detalhes h3 {
+  margin: 0 0 8px;
+  color: var(--cor-madeira-escura);
+}
+
+.painel-detalhes dl {
+  margin: 0 0 10px;
+}
+
+.painel-detalhes dt {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--cor-madeira);
+  margin-top: 6px;
+}
+
+.painel-detalhes dd {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.aviso-ar {
+  position: fixed;
+  bottom: 8px;
+  left: 8px;
+  z-index: 15;
+  background: rgba(74, 46, 26, 0.85);
+  color: var(--cor-bege-claro);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  max-width: 60vw;
+}
+
+/* Responsivo: em telas estreitas, o painel vira uma folha inferior em vez de
+   ocupar uma coluna lateral inteira, para não tomar a tela toda no celular. */
+@media (max-width: 700px) {
+  .painel-crud {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 50vh;
+    border-left: none;
+    border-top: 3px solid var(--cor-madeira);
+  }
+
+  .cabecalho h1 {
+    font-size: 0.95rem;
+  }
+
+  button {
+    flex: 1 1 auto;
+  }
+}
