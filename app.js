@@ -1,43 +1,17 @@
-/**
- * Biblioteca Virtual — lógica do CRUD e da renderização 3D.
- *
- * Este arquivo é compartilhado por index.html (modo VR/3D livre) e ar.html
- * (modo AR com marcador Hiro). Os dois HTMLs expõem os mesmos elementos com
- * id="estrutura-estante" e id="livros-container" dentro de um id="biblioteca-root";
- * este script nunca decide onde a biblioteca aparece no espaço (isso é
- * responsabilidade de cada HTML), só o que existe dentro dela.
- *
- * Mapeamento conceitual do CRUD para verbos HTTP (mesmo sem back-end real):
- *   Create -> POST   /livros
- *   Read   -> GET    /livros
- *   Update -> PUT/PATCH /livros/:id
- *   Delete -> DELETE /livros/:id
- */
-
 // ---------------------------------------------------------------------------
 // Constantes
 // ---------------------------------------------------------------------------
 
 const CHAVE_LIVROS = 'bibliotecaVirtualLivros';
-
-// Quantos livros cabem em uma fileira antes de "quebrar" para a prateleira de baixo.
 const LIVROS_POR_PRATELEIRA = 6;
-
-// Dimensões físicas de um livro (todas as capas usam o mesmo tamanho).
 const LARGURA_LIVRO = 0.35;
 const ALTURA_LIVRO = 0.8;
 const PROFUNDIDADE_LIVRO = 0.12;
-
-// Espaço entre o centro de um livro e o centro do próximo, na horizontal e entre fileiras.
 const ESPACAMENTO_X = 0.42;
 const ESPACAMENTO_Y = 1.05;
-
-// Posição do centro do primeiro livro da primeira fileira (índice 0).
 const X_INICIAL = -((LIVROS_POR_PRATELEIRA - 1) * ESPACAMENTO_X) / 2;
 const Y_TOPO = 1.55;
 const Z_LIVROS = 0.15;
-
-// Medidas da "mobília" da estante (laterais, tábuas, base e topo).
 const ESPESSURA_PAINEL = 0.05;
 const PROFUNDIDADE_ESTANTE = 0.45;
 const MARGEM_LATERAL = 0.25;
@@ -47,45 +21,21 @@ const GAP_TOPO = 0.15;
 
 const COR_MADEIRA = '#6B4226';
 const COR_MADEIRA_ESCURA = '#4A2E1A';
-// O fundo da estante é mais claro que as laterais de propósito: com um tom
-// escuro demais as prateleiras vazias viravam um "buraco preto" na cena.
 const COR_FUNDO_ESTANTE = '#6A472C';
 
 // ---------------------------------------------------------------------------
 // Estado da aplicação
 // ---------------------------------------------------------------------------
 
-// livros é a ÚNICA fonte da verdade da aplicação. A cena 3D é sempre uma
-// representação derivada deste array — nunca o contrário.
 let livros = [];
-
-// Livro atualmente clicado, cujo painel de detalhes está aberto. Controla
-// apenas leitura/visualização e o destaque visual na cena.
 let livroSelecionadoId = null;
-
-// Diferente de livroSelecionadoId: só é != null quando o formulário está em
-// modo "edição". Ele existe para o formulário saber se um "salvar" deve criar
-// um livro novo (POST) ou atualizar um existente (PUT/PATCH). Um livro pode
-// estar selecionado (painel aberto) sem estar em edição.
 let livroEmEdicaoId = null;
-
-// Guarda quantas prateleiras foram desenhadas da última vez, para só
-// reconstruir a mobília da estante quando esse número realmente mudar.
 let numeroDePrateleirasAtual = -1;
 
 // ---------------------------------------------------------------------------
-// LocalStorage (persistência) — GET / gravação bruta dos dados
+// LocalStorage
 // ---------------------------------------------------------------------------
 
-/**
- * Lê os livros do localStorage. Distingue três situações porque isso importa
- * para decidir quando semear os mocks:
- *   - chave ausente (primeira visita)      -> existiaChave: false
- *   - JSON corrompido/não é array          -> existiaChave: false (mocks recriam e sobrescrevem)
- *   - array válido, mesmo vazio ([])       -> existiaChave: true (respeita o estado do usuário)
- * Sem essa distinção, excluir todos os livros faria os mocks reaparecerem no
- * próximo carregamento — o que não é o comportamento esperado de um CRUD real.
- */
 function carregarLivros() {
   const bruto = localStorage.getItem(CHAVE_LIVROS);
 
@@ -105,17 +55,10 @@ function carregarLivros() {
   }
 }
 
-// Grava o array atual inteiro (JSON.stringify) — inclusive quando está vazio,
-// para que a chave exista e o critério acima funcione corretamente.
 function salvarLivros() {
   localStorage.setItem(CHAVE_LIVROS, JSON.stringify(livros));
 }
 
-// Alguns livros de exemplo usados apenas na primeira execução (ou após dados
-// corrompidos). Duas capas ficam vazias de propósito e três apontam para
-// arquivos que não existem em assets/capas/ — isso demonstra, já na carga
-// inicial, que a ausência/falha de capa nunca quebra a aplicação (ver
-// criarLivro3D): o livro aparece normalmente usando a cor cadastrada.
 function criarMocks() {
   return [
     {
@@ -175,7 +118,6 @@ function criarMocks() {
 // CRUD
 // ---------------------------------------------------------------------------
 
-// Validação usada tanto para criação quanto para edição.
 function validarFormulario(dados) {
   const erros = [];
 
@@ -205,7 +147,6 @@ function validarFormulario(dados) {
   return erros;
 }
 
-// Converte os dados brutos do formulário no formato final salvo no array.
 function normalizarDadosLivro(dados) {
   return {
     titulo: dados.titulo.trim(),
@@ -218,7 +159,6 @@ function normalizarDadosLivro(dados) {
   };
 }
 
-// CREATE — equivalente conceitualmente a POST /livros
 function adicionarLivro(dados) {
   const erros = validarFormulario(dados);
   if (erros.length > 0) {
@@ -227,10 +167,6 @@ function adicionarLivro(dados) {
   }
 
   const novoLivro = { id: Date.now(), ...normalizarDadosLivro(dados) };
-
-  // O novo livro só precisa ir para o final do array: como a posição de cada
-  // livro é calculada a partir do seu índice (ver calcularPosicaoLivro), ele
-  // aparece automaticamente no final da fileira atual, sem lógica especial.
   livros.push(novoLivro);
 
   salvarLivros();
@@ -238,7 +174,6 @@ function adicionarLivro(dados) {
   entrarModoCriacao();
 }
 
-// UPDATE — equivalente conceitualmente a PUT/PATCH /livros/:id
 function atualizarLivro(id, dados) {
   const erros = validarFormulario(dados);
   if (erros.length > 0) {
@@ -255,14 +190,10 @@ function atualizarLivro(id, dados) {
   limparSelecao();
 }
 
-// DELETE — equivalente conceitualmente a DELETE /livros/:id
 function excluirLivro(id) {
   const confirmou = window.confirm('Tem certeza que deseja excluir este livro?');
   if (!confirmou) return;
 
-  // Basta remover do array com filter: como a cena inteira é reconstruída a
-  // partir dos índices atuais, os livros seguintes "sobem" automaticamente
-  // para preencher o espaço, sem precisar mover objetos 3D manualmente.
   livros = livros.filter((livro) => livro.id !== id);
 
   salvarLivros();
@@ -275,27 +206,16 @@ function excluirLivro(id) {
 // ---------------------------------------------------------------------------
 
 function calcularPosicaoLivro(indice, livro) {
-  // Math.floor(indice / N) avança de prateleira a cada N livros completos.
   const numeroPrateleira = Math.floor(indice / LIVROS_POR_PRATELEIRA);
-  // indice % N reinicia de 0 a cada nova prateleira: posição dentro da fileira.
   const posicaoNaPrateleira = indice % LIVROS_POR_PRATELEIRA;
 
   const x = X_INICIAL + posicaoNaPrateleira * ESPACAMENTO_X;
-
-  // Livros têm alturas ligeiramente diferentes (ver calcularAlturaLivro), e a
-  // posição do A-Frame é o CENTRO do objeto. Subimos metade da diferença para
-  // que a base continue apoiada na tábua, em vez de ficar flutuando ou
-  // afundando conforme a altura.
   const ajusteDeAltura = livro ? (calcularAlturaLivro(livro) - ALTURA_LIVRO) / 2 : 0;
   const y = Y_TOPO - numeroPrateleira * ESPACAMENTO_Y + ajusteDeAltura;
 
   return { x, y, z: Z_LIVROS, numeroPrateleira };
 }
 
-// Altura e profundidade variam um pouco de livro para livro, só para a
-// estante não parecer um conjunto de caixas idênticas. A variação vem do id,
-// então é determinística: o mesmo livro tem sempre as mesmas medidas, mesmo
-// depois de recarregar a página ou reconstruir a cena.
 function calcularAlturaLivro(livro) {
   const variacao = ((Number(livro.id) % 5) - 2) * 0.04;
   return ALTURA_LIVRO + variacao;
@@ -306,8 +226,6 @@ function calcularProfundidadeLivro(livro) {
   return PROFUNDIDADE_LIVRO + variacao;
 }
 
-// Escolhe texto claro ou escuro conforme a luminância da cor do livro, para
-// o título continuar legível tanto numa lombada vinho quanto numa bege.
 function corDeContraste(corDoLivro) {
   const hex = String(corDoLivro || '').replace('#', '');
   const normalizado =
@@ -336,9 +254,6 @@ function renderizarBiblioteca() {
   renderizarLivros();
 }
 
-// Desenha as tábuas/laterais da estante. Só recria o DOM quando o número de
-// prateleiras necessárias muda, para não ficar destruindo/recriando a mobília
-// toda vez que um único livro é criado/editado/excluído.
 function renderizarEstruturaEstante() {
   const numeroDePrateleiras = Math.max(3, Math.ceil(livros.length / LIVROS_POR_PRATELEIRA));
   if (numeroDePrateleiras === numeroDePrateleirasAtual) return;
@@ -388,7 +303,6 @@ function renderizarEstruturaEstante() {
     );
   });
 
-  // Fundo da estante, só para dar profundidade visual.
   container.appendChild(
     criarCaixa({
       largura: LARGURA_ESTANTE,
@@ -407,14 +321,11 @@ function criarCaixa({ largura, altura, profundidade, cor, x, y, z }) {
   caixa.setAttribute('width', largura);
   caixa.setAttribute('height', altura);
   caixa.setAttribute('depth', profundidade);
-  // roughness alto + metalness zero deixam a madeira fosca, em vez do
-  // aspecto plástico e brilhante do material padrão.
   caixa.setAttribute('material', `color: ${cor}; roughness: 0.92; metalness: 0`);
   caixa.setAttribute('position', `${x} ${y} ${z}`);
   return caixa;
 }
 
-// Limpa e recria todas as entidades de livro a partir do array `livros`.
 function renderizarLivros() {
   const container = document.getElementById('livros-container');
   if (!container) return;
@@ -424,15 +335,11 @@ function renderizarLivros() {
     container.appendChild(criarLivro3D(livro, indice));
   });
 
-  // Se o livro selecionado ainda existir, reaplica o destaque na entidade
-  // recém-criada (o destaque anterior foi perdido junto com o innerHTML = '').
   if (livroSelecionadoId !== null) {
     aplicarDestaque(livroSelecionadoId);
   }
 }
 
-// Cria a entidade 3D de um único livro, incluindo o carregamento best-effort
-// da capa.
 function criarLivro3D(livro, indice) {
   const posicao = calcularPosicaoLivro(indice, livro);
   const altura = calcularAlturaLivro(livro);
@@ -444,10 +351,6 @@ function criarLivro3D(livro, indice) {
   entidade.setAttribute('position', `${posicao.x} ${posicao.y} ${posicao.z}`);
   entidade.setAttribute('scale', '1 1 1');
 
-  // Lombada: sempre visível, usa a cor cadastrada. É o que garante que o
-  // livro nunca "quebra" visualmente, com ou sem capa. O `emissive` já fica
-  // declarado aqui com intensidade zero para que o destaque da seleção
-  // precise mexer só na intensidade (ver aplicarDestaque).
   const lombada = document.createElement('a-box');
   lombada.setAttribute('width', LARGURA_LIVRO);
   lombada.setAttribute('height', altura);
@@ -459,10 +362,6 @@ function criarLivro3D(livro, indice) {
   lombada.classList.add('clickable');
   entidade.appendChild(lombada);
 
-  // Texto de apoio (título + autor), usado como identificação enquanto não
-  // há uma capa carregada com sucesso. A largura precisa acompanhar a do
-  // livro: com um valor maior que LARGURA_LIVRO o texto transborda por cima
-  // dos livros vizinhos.
   const texto = document.createElement('a-text');
   texto.setAttribute('value', textoDaCapa(livro));
   texto.setAttribute('align', 'center');
@@ -475,13 +374,6 @@ function criarLivro3D(livro, indice) {
 
   entidade.addEventListener('click', () => selecionarLivro(livro.id));
 
-  // Capa: tratada como "melhor esforço". URLs externas podem falhar por
-  // problemas de rede ou de CORS (a imagem existe, mas o servidor de origem
-  // não libera Access-Control-Allow-Origin, o que impede usá-la como
-  // textura); por isso caminhos locais em assets/capas/ são a via
-  // recomendada. Em qualquer falha, ou quando não há capa informada, a
-  // lombada colorida + texto continuam sendo exibidos normalmente — nenhuma
-  // falha de imagem interrompe a renderização dos demais livros.
   if (livro.capa) {
     const imagem = new Image();
     imagem.crossOrigin = 'anonymous';
@@ -507,8 +399,6 @@ function criarLivro3D(livro, indice) {
   return entidade;
 }
 
-// Títulos/autores muito longos viram um bloco de texto ilegível na capa 3D;
-// aqui cortamos o excesso (o texto completo continua no painel lateral).
 function textoDaCapa(livro) {
   const LIMITE = 34;
   const encurtar = (valor) =>
@@ -521,10 +411,6 @@ function textoDaCapa(livro) {
 // Seleção e destaque visual
 // ---------------------------------------------------------------------------
 
-// O clique numa entidade 3D só carrega o data-id; é esse id que liga o objeto
-// 3D de volta ao registro correspondente no array `livros`. Clicar sempre
-// reabre o preview da capa, mesmo se o livro já estava selecionado — só o
-// destaque 3D (escala/avanço) é que não se reaplica à toa nesse caso.
 function selecionarLivro(id) {
   const livro = livros.find((l) => l.id === id);
   if (!livro) return;
@@ -545,9 +431,6 @@ function limparSelecao() {
   entrarModoCriacao();
 }
 
-// Destaque da seleção: o livro avança em direção à câmera, cresce um pouco e
-// acende (emissive). Os três juntos deixam claro qual livro está selecionado
-// mesmo quando a estante está cheia de cores parecidas.
 function aplicarDestaque(id) {
   const indice = livros.findIndex((l) => l.id === id);
   const entidade = document.querySelector(`#livros-container [data-id="${id}"]`);
@@ -557,8 +440,6 @@ function aplicarDestaque(id) {
   entidade.setAttribute('position', `${posicao.x} ${posicao.y} ${posicao.z + 0.18}`);
   entidade.setAttribute('scale', '1.12 1.12 1.12');
 
-  // Brilho discreto: o suficiente para destacar sem lavar a cor cadastrada
-  // do livro (com valores altos um verde escuro virava quase bege).
   const lombada = entidade.querySelector('a-box');
   if (lombada) lombada.setAttribute('material', 'emissiveIntensity', 0.18);
 }
@@ -584,9 +465,6 @@ function removerDestaque(id) {
 // Preview em tela cheia da capa (aberto ao clicar em qualquer livro)
 // ---------------------------------------------------------------------------
 
-// Mostra a capa do livro selecionado ocupando a tela toda. Se não houver
-// capa, ou se ela falhar ao carregar, usa o mesmo fallback do livro 3D
-// (cor cadastrada + título/autor) — nunca deixa o preview vazio.
 function mostrarCapaOverlay(livro) {
   const overlay = document.getElementById('overlay-capa');
   const conteudo = document.getElementById('overlay-capa-conteudo');
@@ -610,9 +488,6 @@ function mostrarCapaOverlay(livro) {
   overlay.hidden = false;
 }
 
-// Constrói o fallback via DOM (não innerHTML) porque título/autor vêm do
-// formulário preenchido pelo usuário — inserir esse texto como HTML bruto
-// abriria uma brecha de XSS armazenado.
 function mostrarFallbackCapaOverlay(conteudo, livro) {
   conteudo.innerHTML = '';
 
@@ -635,8 +510,6 @@ function esconderCapaOverlay() {
   document.getElementById('overlay-capa').hidden = true;
 }
 
-// Clicar no fundo escurecido (fora da capa/fallback) fecha o preview e volta
-// para a interface normal de interação com os livros.
 function configurarOverlayCapa() {
   const overlay = document.getElementById('overlay-capa');
   overlay.addEventListener('click', (evento) => {
@@ -661,17 +534,6 @@ function obterDadosFormulario() {
     capa: document.getElementById('campo-capa').value
   };
 }
-
-// O formulário tem três modos, controlados por estas três funções — cada
-// uma deixa o formulário/botões num estado completo e consistente, então
-// trocar de modo nunca depende de "lembrar" de desfazer o estado anterior:
-//
-//   criação      -> campos vazios e editáveis, só o botão "Adicionar livro"
-//   visualização -> campos preenchidos com o livro selecionado, mas
-//                   desabilitados (não dá pra digitar); botões
-//                   Editar/Excluir/Fechar
-//   edição       -> campos preenchidos e editáveis; botões
-//                   Salvar alterações/Cancelar
 
 function entrarModoCriacao() {
   livroSelecionadoId = null;
@@ -704,9 +566,6 @@ function entrarModoVisualizacao(livro) {
   document.getElementById('botao-excluir-detalhe').hidden = false;
   document.getElementById('botao-fechar-detalhe').hidden = false;
 
-  // O painel pode estar rolado (principalmente no celular, onde ele é uma
-  // folha inferior curta); volta ao topo para os dados do livro recém
-  // selecionado ficarem visíveis sem o usuário precisar rolar.
   const painel = document.querySelector('.painel-crud');
   if (painel) painel.scrollTop = 0;
 }
@@ -738,10 +597,6 @@ function preencherFormulario(livro) {
   document.getElementById('campo-capa').value = livro.capa || '';
 }
 
-// Habilita/desabilita os campos do formulário. Usamos "disabled" (não
-// "readonly") porque readonly não tem efeito em <input type="color">, e
-// aqui os dois tipos de campo precisam ficar igualmente bloqueados no modo
-// de visualização.
 function definirCamposEditaveis(editavel) {
   const idsDosCampos = [
     'campo-titulo',
@@ -757,9 +612,6 @@ function definirCamposEditaveis(editavel) {
   });
 }
 
-// "Cancelar" durante uma edição não limpa a seleção: volta a mostrar os
-// dados (não modificados) do livro que estava selecionado, como se a edição
-// nunca tivesse começado.
 function cancelarEdicao() {
   livroEmEdicaoId = null;
   const livroSelecionado = livros.find((l) => l.id === livroSelecionadoId);
@@ -834,9 +686,6 @@ function inicializarAplicacao() {
     livros = resultado.livros;
   } else {
     livros = criarMocks();
-    // Sobrescreve imediatamente: cobre tanto a primeira visita quanto o caso
-    // de JSON corrompido, deixando o localStorage num estado válido sem
-    // esperar pela próxima escrita do usuário.
     salvarLivros();
   }
 

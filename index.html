@@ -5,10 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Biblioteca Virtual</title>
 
-  <!--
-    A-Frame 1.6.0 — versão fixada e testada com este projeto (ver README.md).
-    Não atualizar sem validar antes a compatibilidade com o AR.js usado em ar.html.
-  -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 
   <link rel="stylesheet" href="style.css" />
@@ -20,29 +16,9 @@
     <a href="ar.html">Ver em Realidade Aumentada</a>
   </header>
 
-  <!-- ============================== CENA 3D ============================== -->
-  <!--
-    Sala fechada em torno da estante (paredes, teto, tapete, luminárias e
-    alguns elementos de decoração), só para ambientação — nenhum desses
-    elementos guarda dado algum; é cenário estático ao redor de
-    #biblioteca-root, que continua sendo o único ponto de transformação que
-    app.js e a estrutura de dados conhecem.
-  -->
   <a-scene cursor="rayOrigin: mouse" fog="type: linear; color: #D9C7A3; near: 8; far: 17">
     <a-assets></a-assets>
 
-    <!-- Câmera SEM wasd-controls: o usuário não anda pela sala, só olha ao
-         redor (look-controls é só rotação, não move a posição). Isso evita
-         o personagem se afastar/atravessar a estante e mantém o foco na
-         interação por clique com os livros.
-
-         Aqui a seleção é por CLIQUE: a cena usa "rayOrigin: mouse", então a
-         mira acompanha o ponteiro. O fuse (gaze) fica desligado de
-         propósito neste modo — com a mira parada no centro da tela, ele
-         dispararia sozinho ao carregar a página e abriria a capa de um
-         livro qualquer sem o usuário ter feito nada. A seleção por gaze
-         está em ar.html, onde faz sentido (o aparelho é apontado com a
-         mão e não existe ponteiro do mouse). -->
     <a-camera position="0.5 1.55 -0.1" look-controls>
       <a-cursor
         id="cursor-principal"
@@ -147,14 +123,6 @@
              material="color: #6E7A56; roughness: 0.9"></a-box>
     </a-entity>
 
-    <!--
-      biblioteca-root é o único ponto de transformação da biblioteca inteira.
-      app.js nunca escreve nele: só manipula o que está dentro de
-      #estrutura-estante e #livros-container. Isso permite que index.html e
-      ar.html posicionem a mesma estante de formas completamente diferentes
-      (aqui, fixa à frente da câmera; em ar.html, escalada para caber sobre o
-      marcador Hiro) sem que app.js precise saber em qual modo está rodando.
-    -->
     <a-entity id="biblioteca-root" position="0 0 -3">
       <a-entity id="estrutura-estante"></a-entity>
       <a-entity id="livros-container"></a-entity>
@@ -213,12 +181,7 @@
         <input id="campo-capa" type="text" placeholder="assets/capas/exemplo.jpg" />
       </div>
 
-      <!--
-        Os seis botões abaixo cobrem os três modos do formulário (ver
-        entrarModoCriacao/entrarModoVisualizacao/entrarModoEdicao em app.js):
-        cada modo mostra só os botões que fazem sentido nele, escondendo os
-        demais via o atributo "hidden".
-      -->
+
       <div class="linha-botoes">
         <button id="botao-adicionar" type="submit" class="botao-primario">Adicionar livro</button>
         <button id="botao-salvar" type="submit" class="botao-primario" hidden>Salvar alterações</button>
@@ -230,11 +193,7 @@
     </form>
   </aside>
 
-  <!--
-    Preview em tela cheia da capa do livro selecionado. Clicar no fundo
-    escurecido (fora da capa/fallback) fecha o preview e volta para a
-    interface normal — ver configurarOverlayCapa() em app.js.
-  -->
+  
   <div id="overlay-capa" class="overlay-capa" hidden>
     <div id="overlay-capa-conteudo" class="overlay-capa-conteudo"></div>
     <p class="overlay-capa-dica">Clique fora da capa para voltar</p>

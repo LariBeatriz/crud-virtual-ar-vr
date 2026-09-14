@@ -5,27 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Biblioteca Virtual — Modo AR</title>
 
-  <!--
-    Versões testadas nesta página (não trocar sem revalidar compatibilidade):
-      - A-Frame 1.6.0, via CDN oficial.
-      - AR.js 3.4.8 (build baseado em marcador), via RawGitHack apontando
-        para a TAG "3.4.8" do repositório AR-js-org/AR.js — nunca para
-        "master", para que a versão usada não mude sozinha no futuro.
 
-    Como usar o modo AR:
-      1) Esta página PRECISA ser aberta por HTTP(S) (ex.: servidor local
-         "python3 -m http.server" em localhost, ou uma URL HTTPS real como a
-         porta encaminhada pelo GitHub Codespaces, ou GitHub Pages). Abrir
-         como arquivo local (file://) impede o navegador de liberar a webcam
-         e pode quebrar o carregamento de texturas — ver README.md.
-      2) Imprima ou exiba em outra tela o marcador padrão "Hiro" do AR.js
-         (é o marcador quadrado preto com o desenho estilizado da palavra
-         "HIRO" dentro). O README.md explica onde consegui-lo.
-      3) Ao abrir esta página, permita o acesso à câmera quando solicitado.
-      4) Aponte a câmera do dispositivo para o marcador: a estante com os
-         livros aparece ancorada sobre ele. Toque/clique num livro para
-         selecioná-lo, igual ao modo VR de index.html.
-  -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.8/aframe/build/aframe-ar.js"></script>
 
@@ -49,22 +29,9 @@
   >
     <a-assets></a-assets>
 
-    <!-- Luzes fora do marcador: continuam iluminando a estante mesmo que o
-         marcador saia/entre do quadro. -->
     <a-light type="ambient" color="#BBB"></a-light>
     <a-light type="directional" color="#FFF" intensity="0.6" position="1 3 2"></a-light>
 
-    <!--
-      Câmera exigida explicitamente pelo AR.js: é nela que o componente
-      "arjs" aplica o vídeo da webcam e a estimativa de pose do marcador.
-      Sem um cursor/raycaster aqui, os livros dentro do marcador não
-      responderiam a clique/toque — o AR.js não adiciona isso por padrão.
-
-      Este cursor não usa "rayOrigin: mouse", então a mira segue o centro
-      da tela (o sentido da câmera do celular) — é a forma natural de gaze
-      em AR de mão: aponte o aparelho para o livro e espere o fuse-timeout,
-      sem precisar tocar na tela. Tocar continua funcionando também.
-    -->
     <a-entity camera>
       <a-cursor
         id="cursor-ar"
@@ -79,12 +46,7 @@
     </a-entity>
 
     <a-marker preset="hiro">
-      <!--
-        Mesma estrutura DOM e mesmos ids de index.html, só que em escala
-        menor (a unidade "1" do A-Frame vira o tamanho do marcador físico
-        impresso). app.js não sabe — nem precisa saber — que está dentro de
-        um marcador: ele só enxerga #estrutura-estante e #livros-container.
-      -->
+
       <a-entity id="biblioteca-root" position="0 0 0" scale="0.28 0.28 0.28">
         <a-entity id="estrutura-estante"></a-entity>
         <a-entity id="livros-container"></a-entity>
@@ -92,9 +54,6 @@
     </a-marker>
   </a-scene>
 
-  <!-- ============================ PAINEL CRUD ============================ -->
-  <!-- Mesma estrutura e mesmos ids de index.html: app.js espera exatamente
-       estes elementos para funcionar, independente do modo (VR ou AR). -->
   <aside class="painel-crud">
     <h2 id="titulo-formulario">Adicionar livro</h2>
 
